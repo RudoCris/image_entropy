@@ -1,0 +1,82 @@
+
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <title>Image Processing</title>
+  <meta charset="UTF-8"/>
+  <style type="text/css">
+    body{
+      background: #6bff6b;
+      margin: 0;
+      padding: 0;
+    }
+
+    #head{
+      height: 50px;
+    }
+  </style>
+
+  <script src="improc.js"></script>
+ </head>
+ <body>
+  <div id="head">
+    <input type="file" id="chooseFileBtn" name="files[]" multiple />
+    <input type="number" min="3" max="11" value="3" id="zoomLevel" />
+  </div>
+    <div id="canvas_block">
+      <canvas id="canvas" width="2048" height="2048"
+              style="z-index: 0; position: absolute"></canvas>
+      <canvas id="zoomLayer" width="2048" height="2048"
+              style="z-index: 10;position: absolute"></canvas>
+    </div>
+  </div>
+ 
+ <script>
+  window.onload = function(){
+    var image = new Image();
+    var canvas = document.getElementById('canvas');
+    var context = canvas.getContext('2d');
+
+    var init = function(){
+      window.src = context.getImageData(0, 0, image.width, image.height);
+      var process = new ImageProcessing(src, context);
+      debugger
+      var hist = process.entropy();
+      
+      for (var i = 0, step = image.width/255; i < 256; i++) {
+        context.fillStyle = '#'+i.toString(16)+'0000';
+        
+        context.fillRect(i*step+image.width, image.height, step, -image.height*hist[i]/Math.max.apply(this, hist));
+      };
+
+      for (var i = 0, step = image.width/255; i < 256; i++) {
+        context.fillStyle = '#'+i.toString(16)+'0000';
+        
+        context.fillRect(i*step+image.width, 2*image.height, step, -image.height*process.histogram.data[i]/Math.max.apply(this, process.histogram.data));
+      };
+
+    };
+
+    image.onload = function(){
+      context.drawImage(this, 0, 0);
+      init();
+    };
+
+    document.getElementById('chooseFileBtn').addEventListener('change', function(){
+      var file = this.files[0];
+      var reader = new FileReader();
+      reader.onload = (function(theFile){
+        return function(e) {
+          image.src = e.target.result;
+          
+        };
+      })(file);
+      
+      reader.readAsDataURL(file);
+    }, false);
+
+
+ }
+  </script>
+ </body>
+</html>
