@@ -77,8 +77,8 @@ ImageProcessing.prototype.getGrayScale = function(){
 	return this.grayScaleImage || this.grayScale();
 };
 
-ImageProcessing.prototype.wavelet = function () {
-	var gray_scale_image = this.getGrayScale(),
+ImageProcessing.prototype.halfWavelet = function (img_data) {
+	var img_data = img_data || this.getGrayScale(),
 		  result = {
 		  	left_part: this.context.createImageData(this.width/2, this.height),
 		  	right_part: this.context.createImageData(this.width/2, this.height)
@@ -87,7 +87,7 @@ ImageProcessing.prototype.wavelet = function () {
 			right_half = [],
 			size = this.width/2;
 
-	gray_scale_image.each({
+	img_data.each({
 		offset: 1,
 		callback: function(element, neighbor, current_position){
 			var x1 = element.R,
@@ -104,8 +104,33 @@ ImageProcessing.prototype.wavelet = function () {
 
 	result.left_part.data.set(left_half);
 	result.right_part.data.set(right_half);
+
 	return result;
-}
+};
+
+ImageProcessing.prototype.fullWavelet = function() {
+	var gray_scale = this.getGrayScale(),
+			width = gray_scale.width,
+			height = gray_scale.height;
+
+	var horizontal_wavelet = this.halfWavelet(gray_scale);
+	var tmp_canvas = document.createElement("canvas"),
+			context = tmp_canvas.getContext("2d");
+
+	tmp_canvas.height = height;
+	tmp_canvas.width = width;
+	context.putImageData(horizontal_wavelet.left_part, 0, 0);
+	context.putImageData(horizontal_wavelet.right_part, horizontal_wavelet.left_part.width, 0);
+
+	context.save();
+	context.translate(width, 0);
+	context.rotate(Math.PI/2);
+	context.drawImage(tmp_canvas, 0, 0, width, height);
+	context.restore();
+	var rotate_horizontal_wavelet = context.getImageData(0, 0, width, height);
+	var vertical_wavelet = this.halfWavelet(rotate_horizontal_wavelet);
+	return vertical_wavelet;
+};
 
 ImageProcessing.prototype.entropy = function(){
 	var dst = this.context.createImageData(this.width, this.height), 

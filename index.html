@@ -44,22 +44,9 @@
         window.src = context.getImageData(0, 0, image.width, image.height);
         var process = new ImageProcessing(src, context);
         
-        var wavelet = process.wavelet();
+        var wavelet = process.fullWavelet();
         result_context.putImageData(wavelet.left_part, 0, 0);
         result_context.putImageData(wavelet.right_part, image.width/2, 0);
-
-        var hist = process.entropy();
-        for (var i = 0, step = image.width/255; i < 256; i++) {
-          context.fillStyle = '#'+i.toString(16)+'0000';
-          
-          context.fillRect(i*step+image.width, image.height, step, -image.height*hist[i]/Math.max.apply(this, hist));
-        };
-        for (var i = 0, step = image.width/255; i < 256; i++) {
-          context.fillStyle = '#'+i.toString(16)+'0000';
-          
-          context.fillRect(i*step+image.width, 2*image.height, step, -image.height*process.histogram.data[i]/Math.max.apply(this, process.histogram.data));
-        };
-
       };
 
       image.onload = function(){
