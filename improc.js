@@ -1,4 +1,3 @@
-
 function ImageProcessing(image, context){
 	this.context = context;
 	this.width = image.width;
@@ -78,6 +77,36 @@ ImageProcessing.prototype.getGrayScale = function(){
 	return this.grayScaleImage || this.grayScale();
 };
 
+ImageProcessing.prototype.wavelet = function () {
+	var gray_scale_image = this.getGrayScale(),
+		  result = {
+		  	left_part: this.context.createImageData(this.width/2, this.height),
+		  	right_part: this.context.createImageData(this.width/2, this.height)
+		  };
+	var left_half = [], 
+			right_half = [],
+			size = this.width/2;
+
+	gray_scale_image.each({
+		offset: 1,
+		callback: function(element, neighbor, current_position){
+			var x1 = element.R,
+					x2 = neighbor({x: 1}).R;
+			if(current_position.x < size){
+				var new_gray_scale_pixel_color = parseInt((x1 + x2) / 2);
+				left_half = left_half.concat(ImageData.createGrayScalePixel(new_gray_scale_pixel_color));
+			}else{
+				var new_gray_scale_pixel_color = parseInt((x1 - x2) / 2);
+				right_half = right_half.concat(ImageData.createGrayScalePixel(new_gray_scale_pixel_color));
+			}
+		}
+	});
+
+	result.left_part.data.set(left_half);
+	result.right_part.data.set(right_half);
+	return result;
+}
+
 ImageProcessing.prototype.entropy = function(){
 	var dst = this.context.createImageData(this.width, this.height), 
 			dstData = dst.data;
@@ -101,168 +130,41 @@ Array.prototype.max = function() {
 Array.prototype.min = function() {
   return Math.min.apply(null, this);
 };
-ImageProcessing.prototype.binary = function(p) {
-	var p = p || 128;
-	var dst = this.context.createImageData(this.width, this.height), 
-			dstData = dst.data;
 
-	var grData = this.getGrayScale().data;
-	var len = grData.length;
-	var h = this.getGrayScale().height, w = this.getGrayScale().width;
+ImageData.prototype.each = function(attrs){
+	var height = this.height, 
+			width = this.width,
+			offset = attrs.offset || 0;
 	
+	for (var i = offset; i < height - offset; i++) {
+		for (var j = offset; j < width - offset; j++) {
+			var color_data_index = 4 * i * width + 4 * j,
+					element = this.getPixel(color_data_index),
+					image_data = this, 
+					neighbor = function(offset){
+						var offset_x = offset.x || 0,
+								offset_y = offset.y || 0;
+						var neibor_data_index = 4 * (i + offset_y) * width + 4 * (j + offset_x);
+						return image_data.getPixel(neibor_data_index);
+					},
+					current_position = {x: j, y: i};
 
-	for (var i = 1; i < h-1; i++) {
-		for (var j = 1; j < w-1; j++) {
-			
-			var s = function(i,j) {return 4 * i * w + 4 * j};
-			
-			var dta = [
-				grData[s(i-1, j-1)],grData[s(i-1, j)],grData[s(i-1, j+1)],
-				grData[s(i, j-1)], 	grData[s(i, j)], 	grData[s(i, j+1)],
-				grData[s(i+1, j-1)], grData[s(i+1, j)], grData[s(i+1, j+1)]
-			];
-			
-			dstData[s(i,j)] = 
-			dstData[s(i,j)+1] = 
-			dstData[s(i,j)+2] = (dta.max()+dta.min())/2 > p ? 255 : 0;
-
-			dstData[s(i,j)+3] = 255;
+			attrs.callback(element, neighbor, current_position)
 		}
 	}
-	return dst;
+
 }
 
-
-ImageProcessing.prototype.negate = function(p){
-	this.P = p || this.P;
-	
-	var src = this.getSource(),
-		srcData = src.data;
-	var dst = this.context.createImageData(this.width, this.height),
-		dstData = dst.data;
-	var grData = this.getGrayScale().data;
-	
-	for (var i = 0, len = srcData.length; i < len; i+=4) {
-		if(grData[i] > this.P){
-			dstData[i]=255-srcData[i];
-			dstData[i+1]=255-srcData[i+1];
-			dstData[i+2]=255-srcData[i+2];
-		} else {
-			dstData[i]=srcData[i];
-			dstData[i+1]=srcData[i+1];
-			dstData[i+2]=srcData[i+2];
-		}
-		dstData[i+3]=this.alpha;
-
-	};	
-	return dst;
-};
-
-ImageProcessing.prototype.negateLevel = function(callback) {
-	var p = new Level(this.P, 0, 255, 'P', this);
-
-	return p.domNode(callback);
-};
-
-
-
-function Level(val, min, max, name, callbackElement){
-	this.value = val;
-	this.min = min || 0;
-	this.max = max || 255;
-	this.name = name || 'unnamed';
-	this.callbackElement = callbackElement;
+ImageData.prototype.getPixel = function(color_data_index){
+	var data = this.data;
+	return {
+						R: data[color_data_index],
+						G: data[color_data_index + 1],
+						B: data[color_data_index + 2],
+						A: data[color_data_index + 3]
+					}
 }
-Level.prototype.domNode = function(callback){
-	var input = document.createElement('input');
-	var self = this;
-	with(input){
-		type = "range";
-		min = self.min;
-		max = self.max;
-		name = self.name;
-		id = self.name;
-		value = self.value || (min+max)/2;
-		className = 'level'
-	}
-	
-	// var lblName = document.createElement('label');
-	// lblName.textContent = self.name;
-	
-	// lblName.className = 'lblName';
 
-	var lblValue = document.createElement('label');
-	lblValue.textContent = input.value;
-	lblValue.id = self.name + '_lblValue';
-
-
-	var div = document.createElement('div');
-	div.className = self.name;
-	//div.appendChild(lblName);
-	div.appendChild(input);
-	div.appendChild(lblValue);
-
-	input.addEventListener('change',function() {
-		lblValue.textContent = this.value;
-		self.setValue(parseInt(this.value));
-	},false);
-	input.addEventListener('keyup',function() {
-		lblValue.textContent = this.value;
-		self.setValue(parseInt(this.value));
-	},false);
-	if(callback){
-		input.addEventListener('change',function() {
-			callback();
-		},false);
-		input.addEventListener('keyup',function() {
-			callback();
-		},false);
-	}
-	
-
-	return div;
-};
-Level.prototype.setValue = function (val) {
-	this.value = val;
-	this.callbackElement.updateFactor(val, this.name);
-};
-Level.prototype.showIn = function(parentNode){
-	parentNode.appendChild(this.domNode());
-};
-
-function Levels(r, g, b){
-	this.r = new Level(r || 77, 'red');
-	this.g = new Level(g || 150, 'green');
-	this.b = new Level(b || 28, 'blue');
-	this.updateFactor();
+ImageData.createGrayScalePixel = function(color){
+	return [color, color, color, 255];
 }
-Levels.prototype.changeImageData = function(imageData){
-	return imageData.grayScale(this.cR, this.cG, this.cB);
-};
-
-Levels.prototype.showIn = function(parentNode){
-	document.getElementById('levelsBlock').remove();
-	
-	var levelsBlock = document.createElement('div');
-	levelsBlock.id = 'levelsBlock';
-	levelsBlock.appendChild(this.r.domNode());
-	levelsBlock.appendChild(this.g.domNode());
-	levelsBlock.appendChild(this.b.domNode());
-	var updBtn = document.createElement('input');
-
-	with(updBtn){
-		type = 'button';
-		value = 'Просмотр';
-		id = 'updBtn';
-	}
-	levelsBlock.appendChild(updBtn);
-
-	parentNode.appendChild(levelsBlock);
-};
-
-Levels.prototype.updateFactor = function() {
-	var self = this;
-	self.cR = self.r.value/Math.max(self.r.value + self.g.value + self.b.value, 1);
-	self.cG = self.g.value/Math.max(self.r.value + self.g.value + self.b.value, 1);
-	self.cB = self.b.value/Math.max(self.r.value + self.g.value + self.b.value, 1);
-};

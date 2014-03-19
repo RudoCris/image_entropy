@@ -21,62 +21,65 @@
  <body>
   <div id="head">
     <input type="file" id="chooseFileBtn" name="files[]" multiple />
-    <input type="number" min="3" max="11" value="3" id="zoomLevel" />
   </div>
     <div id="canvas_block">
-      <canvas id="canvas" width="2048" height="2048"
-              style="z-index: 0; position: absolute"></canvas>
-      <canvas id="zoomLayer" width="2048" height="2048"
-              style="z-index: 10;position: absolute"></canvas>
+      <canvas id="canvas" width="512" height="512"></canvas>
+      <canvas id="result" width="512" height="512"></canvas>
+
     </div>
   </div>
  
  <script>
-  window.onload = function(){
-    var image = new Image();
-    var canvas = document.getElementById('canvas');
-    var context = canvas.getContext('2d');
+    window.onload = function(){
+      var image = new Image();
 
-    var init = function(){
-      window.src = context.getImageData(0, 0, image.width, image.height);
-      var process = new ImageProcessing(src, context);
-      debugger
-      var hist = process.entropy();
-      
-      for (var i = 0, step = image.width/255; i < 256; i++) {
-        context.fillStyle = '#'+i.toString(16)+'0000';
+      var canvas = document.getElementById('canvas');
+      var context = canvas.getContext('2d');
+
+      var result_canvas = document.getElementById('result');
+      var result_context = result_canvas.getContext('2d');
+
+
+      var init = function(){
+        window.src = context.getImageData(0, 0, image.width, image.height);
+        var process = new ImageProcessing(src, context);
         
-        context.fillRect(i*step+image.width, image.height, step, -image.height*hist[i]/Math.max.apply(this, hist));
-      };
+        var wavelet = process.wavelet();
+        result_context.putImageData(wavelet.left_part, 0, 0);
+        result_context.putImageData(wavelet.right_part, image.width/2, 0);
 
-      for (var i = 0, step = image.width/255; i < 256; i++) {
-        context.fillStyle = '#'+i.toString(16)+'0000';
-        
-        context.fillRect(i*step+image.width, 2*image.height, step, -image.height*process.histogram.data[i]/Math.max.apply(this, process.histogram.data));
-      };
-
-    };
-
-    image.onload = function(){
-      context.drawImage(this, 0, 0);
-      init();
-    };
-
-    document.getElementById('chooseFileBtn').addEventListener('change', function(){
-      var file = this.files[0];
-      var reader = new FileReader();
-      reader.onload = (function(theFile){
-        return function(e) {
-          image.src = e.target.result;
+        var hist = process.entropy();
+        for (var i = 0, step = image.width/255; i < 256; i++) {
+          context.fillStyle = '#'+i.toString(16)+'0000';
           
+          context.fillRect(i*step+image.width, image.height, step, -image.height*hist[i]/Math.max.apply(this, hist));
         };
-      })(file);
-      
-      reader.readAsDataURL(file);
-    }, false);
+        for (var i = 0, step = image.width/255; i < 256; i++) {
+          context.fillStyle = '#'+i.toString(16)+'0000';
+          
+          context.fillRect(i*step+image.width, 2*image.height, step, -image.height*process.histogram.data[i]/Math.max.apply(this, process.histogram.data));
+        };
 
+      };
 
- }
+      image.onload = function(){
+        context.drawImage(this, 0, 0);
+        init();
+      };
+
+      document.getElementById('chooseFileBtn').addEventListener('change', function(){
+        var file = this.files[0];
+        var reader = new FileReader();
+        reader.onload = (function(theFile){
+          return function(e) {
+            image.src = e.target.result;
+            
+          };
+        })(file);
+        
+        reader.readAsDataURL(file);
+      }, false);
+    }
   </script>
  </body>
 </html>
