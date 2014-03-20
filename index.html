@@ -25,6 +25,7 @@
     <div id="canvas_block">
       <canvas id="canvas" width="512" height="512"></canvas>
       <canvas id="result" width="512" height="512"></canvas>
+      <canvas id="gray_scale" width="512" height="512"></canvas>
 
     </div>
   </div>
@@ -39,14 +40,12 @@
       var result_canvas = document.getElementById('result');
       var result_context = result_canvas.getContext('2d');
 
-
       var init = function(){
         window.src = context.getImageData(0, 0, image.width, image.height);
         var process = new ImageProcessing(src, context);
-        
+
         var wavelet = process.fullWavelet();
-        result_context.putImageData(wavelet.left_part, 0, 0);
-        result_context.putImageData(wavelet.right_part, image.width/2, 0);
+        result_context.putImageData(wavelet, 0, 0);
       };
 
       image.onload = function(){

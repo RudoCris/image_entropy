@@ -77,23 +77,26 @@ ImageProcessing.prototype.getGrayScale = function(){
 	return this.grayScaleImage || this.grayScale();
 };
 
-ImageProcessing.prototype.halfWavelet = function (img_data) {
+ImageProcessing.prototype.halfWavelet = function (img_data, iterate_func) {
 	var img_data = img_data || this.getGrayScale(),
 		  result = {
 		  	left_part: this.context.createImageData(this.width/2, this.height),
 		  	right_part: this.context.createImageData(this.width/2, this.height)
-		  };
-	var left_half = [], 
-			right_half = [],
+		  },
+		  iterate_func = iterate_func || "each";
+	var left_half = Array.initTwoDimention(width/2), 
+			right_half = Array.initTwoDimention(width/2),
 			size = this.width/2;
 
-	img_data.each({
-		offset: 1,
+	img_data[iterate_func]({
+		offset: 0,
 		callback: function(element, neighbor, current_position){
 			var x1 = element.R,
 					x2 = neighbor({x: 1}).R;
 			if(current_position.x < size){
+
 				var new_gray_scale_pixel_color = parseInt((x1 + x2) / 2);
+				left_half[current_position.x][current_position.y]
 				left_half = left_half.concat(ImageData.createGrayScalePixel(new_gray_scale_pixel_color));
 			}else{
 				var new_gray_scale_pixel_color = parseInt((x1 - x2) / 2);
@@ -113,7 +116,8 @@ ImageProcessing.prototype.fullWavelet = function() {
 			width = gray_scale.width,
 			height = gray_scale.height;
 
-	var horizontal_wavelet = this.halfWavelet(gray_scale);
+	var horizontal_wavelet = this.halfWavelet(gray_scale, "col_each");
+	
 	var tmp_canvas = document.createElement("canvas"),
 			context = tmp_canvas.getContext("2d");
 
@@ -122,31 +126,14 @@ ImageProcessing.prototype.fullWavelet = function() {
 	context.putImageData(horizontal_wavelet.left_part, 0, 0);
 	context.putImageData(horizontal_wavelet.right_part, horizontal_wavelet.left_part.width, 0);
 
-	context.save();
-	context.translate(width, 0);
-	context.rotate(Math.PI/2);
-	context.drawImage(tmp_canvas, 0, 0, width, height);
-	context.restore();
-	var rotate_horizontal_wavelet = context.getImageData(0, 0, width, height);
-	var vertical_wavelet = this.halfWavelet(rotate_horizontal_wavelet);
-	return vertical_wavelet;
+	// var rotate_horizontal_wavelet = context.getImageData(0, 0, width, height);
+	// var vertical_wavelet = this.halfWavelet(rotate_horizontal_wavelet, "col_each");
+
+	// context.putImageData(vertical_wavelet.left_part, 0, 0);
+	// context.putImageData(vertical_wavelet.right_part, vertical_wavelet.left_part.width, 0);	
+
+	return context.getImageData(0, 0, width, height);
 };
-
-ImageProcessing.prototype.entropy = function(){
-	var dst = this.context.createImageData(this.width, this.height), 
-			dstData = dst.data;
-
-	var grData = this.getGrayScale().data;
-	var len = grData.length;
-	var h = this.getGrayScale().height, w = this.getGrayScale().width;
-	var histogram = this.histogram.data;
-	var entrop_hist = [];
-	var log = Math.log;
-	for (var i = 0; i < 255; i++) {
-		entrop_hist.push(histogram[i]*(log(histogram[i])/log(2)))
-	};
-	return entrop_hist;
-}
  
 Array.prototype.max = function() {
   return Math.max.apply(null, this);
@@ -154,6 +141,22 @@ Array.prototype.max = function() {
 
 Array.prototype.min = function() {
   return Math.min.apply(null, this);
+};
+
+Array.initTwoDimention = function(length) {
+	var arr = [];
+	for (var i = 0; i < length; i++) {
+		arr.push([]);
+	}
+	return arr;
+};
+
+Array.prototype.toImageData = function() {
+	var result = [];
+	for (var i = 0; i < this.length; i++) {
+		result = result.concat(this[i]);
+	};
+	return result;
 };
 
 ImageData.prototype.each = function(attrs){
@@ -173,6 +176,30 @@ ImageData.prototype.each = function(attrs){
 						return image_data.getPixel(neibor_data_index);
 					},
 					current_position = {x: j, y: i};
+
+			attrs.callback(element, neighbor, current_position)
+		}
+	}
+
+}
+
+ImageData.prototype.col_each = function(attrs){
+	var height = this.height, 
+			width = this.width,
+			offset = attrs.offset || 0;
+	
+	for (var i = offset; i < width - offset; i++) {
+		for (var j = height - offset; j > offset; j--) {
+			var color_data_index = 4 * j * height + 4 * i,
+					element = this.getPixel(color_data_index),
+					image_data = this, 
+					neighbor = function(offset){
+						var offset_x = offset.x || 0,
+								offset_y = offset.y || 0;
+						var neibor_data_index = 4 * (j + offset_y) * height + 4 * (i + offset_x);
+						return image_data.getPixel(neibor_data_index);
+					},
+					current_position = {x: i, y: j};
 
 			attrs.callback(element, neighbor, current_position)
 		}
